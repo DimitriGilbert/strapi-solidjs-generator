@@ -1,0 +1,36 @@
+<%
+if (it.noImports === undefined) {
+  %>import { JSX, <%= it.type %>Component<%= it.solidImports !== undefined ?", "+it.solidImports.join(", "):""%> } from "solid-js";<%
+if (it.imports !== undefined) {
+  it.imports.forEach(imp => {
+    var simp = imp.split(":");%> 
+import <%~ simp[0] %> from "<%~ simp[1] %>"; <%
+  })
+} %> <%
+}
+%> 
+<%~ it.preCode !== undefined? it.preCode : "" %> 
+
+<% if(it.props !== undefined) {
+  %>export type <%= it.name %>Props = {
+<% it.props.forEach(prop => {
+    let sp = prop.split(":");
+    %>
+  <%= sp[0] %>: <%= sp.slice(1).join('') %>,
+<%
+  })%>}<% if(it.propsUnion !== undefined) {%> & <%= it.propsUnion.join("&") %><%}%>;
+<%
+}%>
+
+export const <%= it.name %>: <%= it.type %>Component<%~ it.props !== undefined ? "<"+ it.name +"Props>" : "" %> = (<%= it.props !== undefined ? "props: "+ it.name +"Props" : "" %>) => {<% if (it.signals) {%> 
+  <% it.signals.forEach(signal => {
+    let sig = signal.split(":");
+    %>const [<%= sig[0] %>, set<%= it.utils.pascalCase(sig[0]) %>] = createSignal<%~ sig.length > 2 ?"<" + sig[2] + ">":"" %>(<%= sig[1] %>);
+  <%
+  }) %>
+<%} %> 
+  <%~ it.codeContent !== undefined ? it.codeContent : "// your code" %> 
+  
+  // output
+  return (<%~ it.content !== undefined ? it.content : "<div>"+it.name+" SolidJS component</div>"%>);
+};
