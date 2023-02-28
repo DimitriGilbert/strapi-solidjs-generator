@@ -140,7 +140,7 @@ export function strapiTypeToTSType(
         }
       }
     case "json":
-      return "{[key:string]:unknown]}";
+      return "{[key:string]:unknown}";
     case "date":
     case "time":
     case "datetime":
