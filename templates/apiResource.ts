@@ -1,7 +1,7 @@
-import { pascalCase } from "change-case";
-import { BaseAPI } from "./client";
-import * as ApiClasses from "./client/apis";
+import { camelCase } from "change-case";
+import * as apis from "./client";
 import { createResource, Resource, Setter } from "solid-js";
+import { ApiResponse } from "oazapfts/lib/runtime";
 
 export type ApiOperatorItem = {
   value: Resource<unknown>;
@@ -9,56 +9,74 @@ export type ApiOperatorItem = {
   refetch: (info?: unknown) => unknown | Promise<unknown> | undefined | null;
 };
 
-export const ApiEndpoints:Map<string, BaseAPI> = new Map();
+export const ApiOperators: Map<string, ApiOperatorItem> = new Map();
 
-export const ApiOperators:Map<string, ApiOperatorItem> = new Map();
-
-export function getEndpointONameFromOpId(operationId: string) {
-  return pascalCase(operationId.split("/")[1])+"Api";
+export function apiHandleResponse(operator: Function) {
+  return (requestParameters: unknown) => {
+    return new Promise((resolve, reject) => {
+      operator(requestParameters).then((response: ApiResponse) => {
+        if (response.status >= 200 && response.status < 300) {
+          resolve(response.data);
+        } else {
+          reject(response.data);
+        }
+      });
+    });
+  };
 }
-export function getEndpointFromOpId(operationId: string) {
-  const ename = getEndpointONameFromOpId(operationId);
-  if (ApiEndpoints.has(ename)) {
-    return ApiEndpoints.get(ename);
-  } else if (Object.prototype.hasOwnProperty.call(ApiClasses, ename)) {
-    ApiEndpoints.set(ename, new ApiClasses[ename]());
-    return ApiEndpoints.get(ename);
-  } else {
-    throw new Error(
-      `Endpoint ${ename} for operationId ${operationId} not found`
-    );
+
+export function apiOperator(
+  operationId: string,
+  requestParameters?: unknown
+): ApiOperatorItem {
+  const ccOp = camelCase(operationId);
+  let opName = ccOp;
+  if (requestParameters) {
+    switch (typeof requestParameters) {
+      case "object":
+        opName += btoa(JSON.stringify(requestParameters));
+        break;
+      default:
+        opName += btoa(requestParameters.toString());
+        break;
+    }
   }
-}
 
-export function apiOperator(operationId: string, requestParameters: unknown) {
-  if (ApiOperators.has(operationId)) {
-    const op = ApiOperators.get(operationId);
-    // @ts-ignore
-    op.mutate(requestParameters);
-    return op;
+  if (ApiOperators.has(opName)) {
+    const op = ApiOperators.get(opName);
+    if (op) {
+      return op;
+    }
   } else {
-    const endpoint = getEndpointFromOpId(operationId);
-    const opMet = pascalCase(operationId);
-    if (endpoint && Object.prototype.hasOwnProperty.call(endpoint, opMet)) {
-      const operator = endpoint[pascalCase(opMet)];
+    if (Object.prototype.hasOwnProperty.call(apis, ccOp)) {
+      // @ts-ignore
+      const operator = apis[ccOp];
       if (typeof operator === "function") {
-        const [valFn, { mutate, refetch }] = createResource(
+        const [value, { mutate, refetch }] = createResource(
           requestParameters,
-          operator
+          apiHandleResponse(operator)
         );
-        ApiOperators.set(operationId, {
-          value: valFn,
+        ApiOperators.set(opName, {
+          value,
           mutate,
-          refetch
+          refetch,
         });
-        return ApiOperators.get(operationId);
+
+        // stupid typescript, i did fucking set it just fucking above !!!
+        const grrr = ApiOperators.get(opName);
+        if (grrr) {
+          return grrr;
+        }
       } else {
         throw new Error(
-          `Operator ${operationId} not found in endpoint ${getEndpointONameFromOpId(
-            operationId
-          )}`
+          `Operator ${operationId} not found with parameters :
+${JSON.stringify(requestParameters, null, 2)}`
         );
       }
     }
   }
+  throw new Error(
+    `Operator ${operationId} not found with parameters :
+${JSON.stringify(requestParameters, null, 2)}`
+  );
 }

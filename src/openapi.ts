@@ -1,4 +1,4 @@
-import { pascalCase } from "change-case";
+import { camelCase, pascalCase } from "change-case";
 import {
   strapiSchema,
   strapiSchemaAttribute,
@@ -8,6 +8,10 @@ import {
   loadSchemasPaths,
 } from "./utils";
 import { OpenAPIV3 } from "openapi-types";
+import { generateSource } from "oazapfts/lib/codegen";
+import * as fs from "fs";
+import * as path from "path";
+import { format } from "prettier";
 
 export function genAttributeOAD(
   attribute: strapiSchemaAttribute,
@@ -158,6 +162,9 @@ export function genSchemaNoiseOAD(schema: strapiSchema) {
           )}Response`,
         },
       },
+      meta: {
+        $ref: "#/components/schemas/ListResponseMeta",
+      },
     },
   };
 
@@ -256,49 +263,152 @@ export function generateCommonOAD(schemas: { [key: string]: strapiSchema }) {
             },
           },
         },
+        ListResponseMeta: {
+          type: "object",
+          properties: {
+            pagination: {
+              properties: {
+                page: {
+                  type: "integer",
+                },
+                pageSize: {
+                  type: "integer",
+                  minimum: 25,
+                },
+                pageCount: {
+                  type: "integer",
+                  maximum: 1,
+                },
+                total: {
+                  type: "integer",
+                },
+              },
+            },
+          },
+        },
       },
     },
     paths: {},
   } as OpenAPIV3.Document;
 }
 
-export function generateOpenApiDoc(strapiDir:string, clientDir:string) {
-  let wdir = `${strapiDir}/src/api`;
-  loadSchemas(wdir).then((schemas) => {
-    const components = {};
-    const pms:Promise<void>[] = [];
-    for (const schemaName in schemas) {
-      if (Object.prototype.hasOwnProperty.call(schemas, schemaName)) {
-        const schema = schemas[schemaName];
-        const tComp = {};
-        // @ts-ignore
-        tComp[`${pascalCase(schema.info.singularName)}`] = genSchemaOAD(
-          schema,
-          schemas
-        );
-        Object.assign(tComp, genSchemaNoiseOAD(schema));
-  
-        pms.push(
-          saveAs(
-            JSON.stringify(tComp, null, 2),
-            `${clientDir}/components/${pascalCase(
-              schema.info.singularName
-            )}.json`
-          )
-        );
-        Object.assign(components, tComp);
+export function generateOpenApiDoc(strapiDir: string, clientDir: string) {
+  return new Promise((resolve, reject) => {
+    let wdir = `${strapiDir}/src/api`;
+    loadSchemas(wdir).then((schemas) => {
+      const components = {};
+      const pms: Promise<void>[] = [];
+      for (const schemaName in schemas) {
+        if (Object.prototype.hasOwnProperty.call(schemas, schemaName)) {
+          const schema = schemas[schemaName];
+          const tComp = {};
+          // @ts-ignore
+          tComp[`${pascalCase(schema.info.singularName)}`] = genSchemaOAD(
+            schema,
+            schemas
+          );
+          Object.assign(tComp, genSchemaNoiseOAD(schema));
+
+          pms.push(
+            saveAs(
+              JSON.stringify(tComp, null, 2),
+              `${clientDir}/components/${pascalCase(
+                schema.info.singularName
+              )}.json`
+            )
+          );
+          Object.assign(components, tComp);
+        }
       }
-    }
-    Promise.all(pms).then(() => {
-      saveAs(JSON.stringify(components, null, 2), `${clientDir}/components.json`);
-  
-      const doc = generateCommonOAD(schemas);
-      // @ts-ignore
-      doc.components.schemas = { ...doc.components.schemas, ...components };
-      loadSchemasPaths(wdir).then((paths) => {
-        doc.paths = paths;
-        saveAs(JSON.stringify(doc, null, 2), `${clientDir}/openapi-doc.json`);
+      Promise.all(pms).then(() => {
+        saveAs(
+          JSON.stringify(components, null, 2),
+          `${clientDir}/components.json`
+        );
+
+        const doc = generateCommonOAD(schemas);
+        // @ts-ignore
+        doc.components.schemas = { ...doc.components.schemas, ...components };
+        loadSchemasPaths(wdir).then((paths) => {
+          doc.paths = paths;
+          saveAs(
+            JSON.stringify(doc, null, 2),
+            `${clientDir}/openapi-doc.json`
+          ).then(() => {
+            resolve(true);
+          });
+        });
       });
     });
+  });
+}
+
+export function generateGuard(schema: strapiSchema) {
+  const pname = pascalCase(schema.info.singularName);
+  return `export function is${pname}(o: any): o is ${pname} {
+  return ${Object.keys(schema.attributes)
+    .map((attName) => {
+      return `o.${attName} !== undefined`;
+    })
+    .join(" ||\n")};
+}
+export function is${pname}Response(o: any): o is ${pname}Response {
+  return o.id !== undefined && is${pname}(o.attributes);
+}
+`;
+}
+
+export function generateFromResponse(schema: strapiSchema) {
+  const pname = pascalCase(schema.info.singularName);
+  return `export function from${pname}Response(data: any): ${pname} & { id?: number } {
+  if (is${pname}Response(data)) {
+    return {
+      id: data.id,
+      ...data.attributes,
+    } as ${pname} & { id?: number };
+  } else if (is${pname}(data)) {
+    return data as ${pname} & { id?: number };
+  }
+  return {};
+}
+`;
+}
+
+export function generateApiClient(strapiDir: string, outputDir: string) {
+  return new Promise((resolve, reject) => {
+    const docpath = outputDir + "/../openapi/openapi-doc.json";
+    if (fs.existsSync(docpath)) {
+      generateSource(docpath)
+        .then((source) => {
+          loadSchemas(`${strapiDir}/src/api`).then((schemas) => {
+            const extraApi: string[] = [""];
+            for (const schemaName in schemas) {
+              if (Object.prototype.hasOwnProperty.call(schemas, schemaName)) {
+                const schema = schemas[schemaName];
+                extraApi.push(generateGuard(schema));
+                extraApi.push(generateFromResponse(schema));
+              }
+            }
+            saveAs(
+              // format(
+                source + extraApi.join("\n"),
+              // ),
+              outputDir + "/client.ts"
+            ).then(() => {
+              resolve(true);
+            });
+            fs.copyFile(
+              "templates/apiResource.ts",
+              outputDir + "/apiResource.ts",
+              (err) => {
+                if (err) throw err;
+              }
+            );
+          });
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    }
   });
 }

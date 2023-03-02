@@ -10,6 +10,7 @@ import {
   renderUtils,
   saveAs,
 } from "./utils";
+import { format } from "prettier";
 
 export function generateAttributeComponent(
   schema: strapiSchema,
@@ -21,7 +22,7 @@ export function generateAttributeComponent(
     fs.promises.realpath("templates/component.eta").then((path) => {
       try {
         let singularName = schema.info.singularName;
-        resolve(
+        // resolve(
           Eta.renderFile(path, {
             name: `${pascalCase(singularName + "-" + name)}`,
             props: [`${camelCase(singularName)}?:${pascalCase(singularName)}T`],
@@ -32,8 +33,10 @@ export function generateAttributeComponent(
             content: "<div>{props.children}</div>",
             utils: renderUtils,
             ...renderData,
-          })
-        );
+          }).then((etares) => {
+            resolve(format(etares, { parser: "typescript" }));
+          });  
+        // );
       } catch (e) {
         reject(e);
       }
@@ -124,7 +127,7 @@ export function generateAttributeInputComponent(
       const singN = schema.info.singularName;
       const componentName = pascalCase(singN + "-" + name);
       try {
-        resolve(
+        // resolve(
           Eta.renderFile(path, {
             name: `${componentName}Input`,
             props: [
@@ -151,8 +154,10 @@ export function generateAttributeInputComponent(
 </Form.Group>`,
             utils: renderUtils,
             ...renderData,
-          })
-        );
+          }).then((etares) => {
+            resolve(format(etares, { parser: "typescript" }));
+          });  
+        // );
       } catch (e) {
         reject(e);
       }
@@ -168,7 +173,7 @@ export function generateSchemaFormComponent(
     fs.promises.realpath("templates/component.eta").then((path) => {
       try {
         const singularName = schema.info.singularName;
-        resolve(
+        // resolve(
           Eta.renderFile(path, {
             name: `${pascalCase(singularName)}Form`,
             props: [
@@ -205,8 +210,10 @@ export function generateSchemaFormComponent(
 </form>`,
             utils: renderUtils,
             ...renderData,
-          })
-        );
+          }).then((etares) => {
+            resolve(format(etares, { parser: "typescript" }));
+          });  
+        // );
       } catch (e) {
         reject(e);
       }
@@ -247,7 +254,7 @@ export function generateSchemaImports(
       )} } from "./";\n`;
     }
   });
-  return imp;
+  return format(imp, { parser: "typescript" });
 }
 
 export function generateSchemaMainComponent(
@@ -259,7 +266,7 @@ export function generateSchemaMainComponent(
       try {
         const singularName = schema.info.singularName;
         const cName = camelCase(singularName);
-        resolve(
+        // resolve(
           Eta.renderFile(path, {
             name: `${pascalCase(singularName)}`,
             props: [`${cName}?:${pascalCase(singularName)}T`, "hide?:string[]"],
@@ -302,8 +309,10 @@ export function generateSchemaMainComponent(
 </div>`,
             utils: renderUtils,
             ...renderData,
-          })
-        );
+          }).then((etares) => {
+            resolve(format(etares, { parser: "typescript" }));
+          });  
+        // );
       } catch (e) {
         reject(e);
       }
@@ -323,7 +332,7 @@ export function generateSchemaListComponent(
         const cName = camelCase(singularName);
         const pluralName = schema.info.pluralName;
         const cpName = camelCase(pluralName);
-        resolve(
+        // resolve(
           Eta.renderFile(path, {
             name: `${pName}List`,
             props: [`${cpName}?:${pName}T[]`, "hide?:string[]"],
@@ -348,8 +357,10 @@ export function generateSchemaListComponent(
 </div>`,
             utils: renderUtils,
             ...renderData,
-          })
-        );
+          }).then((etares) => {
+            resolve(format(etares, { parser: "typescript" }));
+          })          
+        // );
       } catch (e) {
         reject(e);
       }
@@ -376,9 +387,10 @@ export function generateSchemaIndex(schema: strapiSchema) {
   index.push(`export { ${pName}List } from "./${pName}List";`);
   index.push(
     `export { ${pName} } from "./${pName}";
-export type {${pName} as ${pName}T} from "../../client";`
+import type {${pName} as ${pName}Model} from "../../client";
+export type ${pName}T = ${pName}Model & { id?:number };`
   );
-  return index.join("\n");
+  return format(index.join("\n"), { parser: "typescript" });
 }
 
 export function genrateComponents(strapiDir: string, outputDir: string) {
