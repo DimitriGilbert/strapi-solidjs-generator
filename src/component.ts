@@ -23,19 +23,19 @@ export function generateAttributeComponent(
       try {
         let singularName = schema.info.singularName;
         // resolve(
-          Eta.renderFile(path, {
-            name: `${pascalCase(singularName + "-" + name)}`,
-            props: [`${camelCase(singularName)}?:${pascalCase(singularName)}T`],
-            propsUnion: ["ParentProps"],
-            solidImports: ["ParentProps"],
-            imports: [`{${pascalCase(singularName)}T}:../`],
-            type: "Parent",
-            content: "<div>{props.children}</div>",
-            utils: renderUtils,
-            ...renderData,
-          }).then((etares) => {
-            resolve(format(etares, { parser: "typescript" }));
-          });  
+        Eta.renderFile(path, {
+          name: `${pascalCase(singularName + "-" + name)}`,
+          props: [`${camelCase(singularName)}?:${pascalCase(singularName)}T`],
+          propsUnion: ["ParentProps"],
+          solidImports: ["ParentProps"],
+          imports: [`{${pascalCase(singularName)}T}:../`],
+          type: "Parent",
+          content: "<div>{props.children}</div>",
+          utils: renderUtils,
+          ...renderData,
+        }).then((etares) => {
+          resolve(format(etares, { parser: "typescript" }));
+        });
         // );
       } catch (e) {
         reject(e);
@@ -128,35 +128,32 @@ export function generateAttributeInputComponent(
       const componentName = pascalCase(singN + "-" + name);
       try {
         // resolve(
-          Eta.renderFile(path, {
-            name: `${componentName}Input`,
-            props: [
-              `${camelCase(singN)}?:${pascalCase(singN)}T`,
-              "title?:string",
-              "onChange?:Function",
-            ],
-            propsUnion: ["ParentProps"],
-            solidImports: ["ParentProps", "createSignal"],
-            imports: [
-              "{ Form }:solid-bootstrap",
-              `{${pascalCase(singN)}T}:../`,
-            ],
-            signals: [
-              `${componentName}Value:props?.${camelCase(singN)}?.${name}`,
-            ],
-            type: "Parent",
-            content: `
+        Eta.renderFile(path, {
+          name: `${componentName}Input`,
+          props: [
+            `${camelCase(singN)}?:${pascalCase(singN)}T`,
+            "title?:string",
+            "onChange?:Function",
+          ],
+          propsUnion: ["ParentProps"],
+          solidImports: ["ParentProps", "createSignal"],
+          imports: ["{ Form }:solid-bootstrap", `{${pascalCase(singN)}T}:../`],
+          signals: [
+            `${componentName}Value:props?.${camelCase(singN)}?.${name}`,
+          ],
+          type: "Parent",
+          content: `
 <Form.Group>
   <h3>{props.title}</h3>
   ${attributeLabel(schema, name, attribute)}
   ${attributeInput(schema, name, attribute)}
   {props.children}
 </Form.Group>`,
-            utils: renderUtils,
-            ...renderData,
-          }).then((etares) => {
-            resolve(format(etares, { parser: "typescript" }));
-          });  
+          utils: renderUtils,
+          ...renderData,
+        }).then((etares) => {
+          resolve(format(etares, { parser: "typescript" }));
+        });
         // );
       } catch (e) {
         reject(e);
@@ -174,27 +171,27 @@ export function generateSchemaFormComponent(
       try {
         const singularName = schema.info.singularName;
         // resolve(
-          Eta.renderFile(path, {
-            name: `${pascalCase(singularName)}Form`,
-            props: [
-              "label?:string",
-              "onChange?:Function",
-              "value?:string",
-              "hide?:string[]",
-            ],
-            propsUnion: ["ParentProps"],
-            solidImports: ["ParentProps", "Show"],
-            imports: ["{ Form }:solid-bootstrap"].concat(
-              Object.keys(schema.attributes)
-                .filter((name) => {
-                  return schema.attributes[name].type !== "relation";
-                })
-                .map((name) => {
-                  return `{ ${pascalCase(singularName + "-" + name)}Input }:./`;
-                })
-            ),
-            type: "Parent",
-            content: `
+        Eta.renderFile(path, {
+          name: `${pascalCase(singularName)}Form`,
+          props: [
+            "label?:string",
+            "onChange?:Function",
+            "value?:string",
+            "hide?:string[]",
+          ],
+          propsUnion: ["ParentProps"],
+          solidImports: ["ParentProps", "Show"],
+          imports: ["{ Form }:solid-bootstrap"].concat(
+            Object.keys(schema.attributes)
+              .filter((name) => {
+                return schema.attributes[name].type !== "relation";
+              })
+              .map((name) => {
+                return `{ ${pascalCase(singularName + "-" + name)}Input }:./`;
+              })
+          ),
+          type: "Parent",
+          content: `
 <form>
   ${Object.keys(schema.attributes)
     .filter((name) => {
@@ -208,11 +205,11 @@ export function generateSchemaFormComponent(
     .join("\n\t")}
   { props.children }
 </form>`,
-            utils: renderUtils,
-            ...renderData,
-          }).then((etares) => {
-            resolve(format(etares, { parser: "typescript" }));
-          });  
+          utils: renderUtils,
+          ...renderData,
+        }).then((etares) => {
+          resolve(format(etares, { parser: "typescript" }));
+        });
         // );
       } catch (e) {
         reject(e);
@@ -247,7 +244,8 @@ export function generateSchemaImports(
       let iName = pascalCase(
         schema.attributes[name]?.target?.split(".")[1] || name
       );
-      imp += `import { ${iName}, ${iName}T, ${iName}List } from "../${iName}";\n`;
+      imp += `import { ${iName}, ${iName}List } from "../${iName}";\n
+import { ${iName}T } from "../../client";\n`;
     } else {
       imp += `import { ${pascalCase(
         schema.info.singularName + "-" + name
@@ -267,14 +265,14 @@ export function generateSchemaMainComponent(
         const singularName = schema.info.singularName;
         const cName = camelCase(singularName);
         // resolve(
-          Eta.renderFile(path, {
-            name: `${pascalCase(singularName)}`,
-            props: [`${cName}?:${pascalCase(singularName)}T`, "hide?:string[]"],
-            propsUnion: ["ParentProps"],
-            solidImports: ["ParentProps", "Show"],
-            imports: [`{${pascalCase(singularName)}T}:./`],
-            type: "Parent",
-            content: `
+        Eta.renderFile(path, {
+          name: `${pascalCase(singularName)}`,
+          props: [`${cName}?:${pascalCase(singularName)}T`, "hide?:string[]"],
+          propsUnion: ["ParentProps"],
+          solidImports: ["ParentProps", "Show"],
+          imports: [`{${pascalCase(singularName)}T}:../../client`],
+          type: "Parent",
+          content: `
 <div class="${paramCase(singularName)}-container">
   ${Object.keys(schema.attributes)
     .filter((name) => {
@@ -307,11 +305,11 @@ export function generateSchemaMainComponent(
     .join("\n\t")}
   { props.children }
 </div>`,
-            utils: renderUtils,
-            ...renderData,
-          }).then((etares) => {
-            resolve(format(etares, { parser: "typescript" }));
-          });  
+          utils: renderUtils,
+          ...renderData,
+        }).then((etares) => {
+          resolve(format(etares, { parser: "typescript" }));
+        });
         // );
       } catch (e) {
         reject(e);
@@ -332,16 +330,17 @@ export function generateSchemaListComponent(
         const cName = camelCase(singularName);
         const pluralName = schema.info.pluralName;
         const cpName = camelCase(pluralName);
+        const ppname = pascalCase(pluralName);
         // resolve(
-          Eta.renderFile(path, {
-            name: `${pName}List`,
-            props: [`${cpName}?:${pName}T[]`, "hide?:string[]"],
-            propsUnion: ["ParentProps"],
-            solidImports: ["ParentProps", "For", "createSignal"],
-            imports: [`{${pName},${pName}T}:./`],
-            signals: [`${cpName}:props?.${cpName}:${pName}T[]|undefined`],
-            type: "Parent",
-            content: `
+        Eta.renderFile(path, {
+          name: `${pName}List`,
+          props: [`${cpName}?:${pName}T[]`, "hide?:string[]"],
+          propsUnion: ["ParentProps"],
+          solidImports: ["ParentProps", "For", "createSignal"],
+          imports: [`{${pName},${pName}T}:../../client`],
+          signals: [`${cpName}:props?.${cpName}:${pName}T[]|undefined`],
+          type: "Parent",
+          content: `
 <div class="${paramCase(singularName)}-list-container">
   <ul>
     <For each={${cpName}()}>{(${cName}Item) => 
@@ -355,11 +354,17 @@ export function generateSchemaListComponent(
   </ul>
   { props.children }
 </div>`,
-            utils: renderUtils,
-            ...renderData,
-          }).then((etares) => {
-            resolve(format(etares, { parser: "typescript" }));
-          })          
+          utils: renderUtils,
+          ...renderData,
+        }).then((etares) => {
+          // Eta.renderFile(path, {
+          //   name: `For${ppname}`,
+          //   props: [`${cpName}?:${pName}T[]`],
+          //   type: "Parent",
+          //   noImports: true,
+          // });
+          resolve(format(etares, { parser: "typescript" }));
+        });
         // );
       } catch (e) {
         reject(e);
@@ -385,15 +390,11 @@ export function generateSchemaIndex(schema: strapiSchema) {
   const pName = pascalCase(schema.info.singularName);
   index.push(`export { ${pName}Form } from "./${pName}Form";`);
   index.push(`export { ${pName}List } from "./${pName}List";`);
-  index.push(
-    `export { ${pName} } from "./${pName}";
-import type {${pName} as ${pName}Model} from "../../client";
-export type ${pName}T = ${pName}Model & { id?:number };`
-  );
+  index.push(`export { ${pName} } from "./${pName}";`);
   return format(index.join("\n"), { parser: "typescript" });
 }
 
-export function genrateComponents(strapiDir: string, outputDir: string) {
+export function generateComponents(strapiDir: string, outputDir: string) {
   loadSchemas(`${strapiDir}/src/api`).then((schemas) => {
     for (const name in schemas) {
       if (Object.prototype.hasOwnProperty.call(schemas, name)) {

@@ -1,5 +1,5 @@
 import minimist from "minimist";
-import { genrateComponents } from "./component";
+import { generateComponents } from "./component";
 import { generateApiClient, generateOpenApiDoc } from "./openapi";
 
 const args = minimist(process.argv.slice(2));
@@ -17,7 +17,7 @@ if (args._.length === 3) {
 
   switch (action) {
     case "components":
-      genrateComponents(strapiDir, outputDir);
+      generateComponents(strapiDir, outputDir);
       break;
     case "api-documentation":
       generateOpenApiDoc(strapiDir, outputDir);
@@ -26,7 +26,7 @@ if (args._.length === 3) {
       generateApiClient(strapiDir, outputDir);
       break;
     default:
-      genrateComponents(strapiDir, `${outputDir}/src/components`);
+      generateComponents(strapiDir, `${outputDir}/src/components`);
       generateOpenApiDoc(strapiDir, `${outputDir}/openapi`).then(() => {
         generateApiClient(strapiDir, `${outputDir}/src`);
       });

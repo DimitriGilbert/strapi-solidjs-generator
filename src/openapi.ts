@@ -358,20 +358,53 @@ export function is${pname}Response(o: any): o is ${pname}Response {
 `;
 }
 
-export function generateFromResponse(schema: strapiSchema) {
+export function generateFromResponse(schema: strapiSchema, schemas: {[key: string]: strapiSchema}) {
   const pname = pascalCase(schema.info.singularName);
-  return `export function from${pname}Response(data: any): ${pname} & { id?: number } {
+  return `
+  export type ${pname}T = ${pname} & { id?: number };
+  export function from${pname}Response(data: any): ${pname}T {
   if (is${pname}Response(data)) {
+    ${Object.keys(schema.attributes)
+      .filter((attName) => schema.attributes[attName].type === "relation")
+      .map((attName) => {
+        const att = schema.attributes[attName];
+        switch (att.relation) {
+          case "oneToMany":
+          case "manyToMany":
+            return `if(data.attributes && data.attributes.${attName}) {
+              data.attributes.${attName} = from${getAttributeTargetPascal(
+              att,
+              schemas
+            )}ListResponse(
+      // @ts-ignore
+      data.attributes.${attName}.data)
+            }`;
+          case "manyToOne":
+            return `if(data.attributes && data.attributes.${attName}) {
+              data.attributes.${attName} = from${getAttributeTargetPascal(
+              att,
+              schemas
+            )}Response(
+      // @ts-ignore
+      data.attributes.${attName}.data)
+            }`;
+          default:
+            return "";
+        }
+      })
+      .join("\n")}
     return {
       id: data.id,
       ...data.attributes,
-    } as ${pname} & { id?: number };
+    } as ${pname}T;
   } else if (is${pname}(data)) {
-    return data as ${pname} & { id?: number };
+    return data as ${pname}T;
   }
   return {};
 }
-`;
+export function from${pname}ListResponse(data: any[]): ${pname}T[] {
+  return data.map((d) => from${pname}Response(d));
+}`;
 }
 
 export function generateApiClient(strapiDir: string, outputDir: string) {
@@ -386,12 +419,12 @@ export function generateApiClient(strapiDir: string, outputDir: string) {
               if (Object.prototype.hasOwnProperty.call(schemas, schemaName)) {
                 const schema = schemas[schemaName];
                 extraApi.push(generateGuard(schema));
-                extraApi.push(generateFromResponse(schema));
+                extraApi.push(generateFromResponse(schema, schemas));
               }
             }
             saveAs(
               // format(
-                source + extraApi.join("\n"),
+              source + extraApi.join("\n"),
               // ),
               outputDir + "/client.ts"
             ).then(() => {
