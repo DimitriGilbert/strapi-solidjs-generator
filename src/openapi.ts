@@ -346,14 +346,14 @@ export function generateOpenApiDoc(strapiDir: string, clientDir: string) {
 export function generateGuard(schema: strapiSchema) {
   const pname = pascalCase(schema.info.singularName);
   return `export function is${pname}(o: any): o is ${pname} {
-  return ${Object.keys(schema.attributes)
+  return o !== undefined && (${Object.keys(schema.attributes)
     .map((attName) => {
       return `o.${attName} !== undefined`;
     })
-    .join(" ||\n")};
+    .join(" ||\n")});
 }
 export function is${pname}Response(o: any): o is ${pname}Response {
-  return o.id !== undefined && is${pname}(o.attributes);
+  return o !== undefined && o.id !== undefined && is${pname}(o.attributes);
 }
 `;
 }
